@@ -90,8 +90,7 @@ where
         }
     }
 
-    #[cfg(feature = "sqlite")]
-    pub(crate) fn skip_from(&mut self, value: bool) {
+    pub fn skip_from(&mut self, value: bool) {
         if let AstPassInternals::ToSql(_, ref mut options) = self.internals {
             options.skip_from = value
         }
