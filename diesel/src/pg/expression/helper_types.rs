@@ -37,6 +37,7 @@ pub type IsDistinctFrom<Lhs, Rhs> =
     Grouped<super::operators::IsDistinctFrom<Lhs, AsExpr<Rhs, Lhs>>>;
 
 /// The return type of [`lhs.overlaps_with(rhs)`](super::expression_methods::PgArrayExpressionMethods::overlaps_with)
+/// and [`lhs.overlaps_with(rhs)`](super::expression_methods::PgRangeExpressionMethods::overlaps_with)
 #[cfg(feature = "postgres_backend")]
 pub type OverlapsWith<Lhs, Rhs> = Grouped<super::operators::OverlapsWith<Lhs, AsExpr<Rhs, Lhs>>>;
 
@@ -59,6 +60,12 @@ pub type RangeContains<Lhs, Rhs> = Grouped<
     >,
 >;
 
+/// The return type of [`lhs.range_not_extends_right_to(rhs)`](super::expression_methods::PgRangeExpressionMethods::range_not_extends_right_to)
+/// for range expressions
+#[cfg(feature = "postgres_backend")]
+pub type RangeNotExtendsRightTo<Lhs, Rhs> =
+    Grouped<super::operators::NotExtendsRightTo<Lhs, AsExpr<Rhs, Lhs>>>;
+
 /// The return type of [`lhs.contains_range(rhs)`](super::expression_methods::PgRangeExpressionMethods::contains_range)
 /// for range expressions
 #[cfg(feature = "postgres_backend")]
@@ -68,6 +75,40 @@ pub type ContainsRange<Lhs, Rhs> = Contains<Lhs, Rhs>;
 /// and [`lhs.is_contained_by(rhs)`](super::expression_methods::PgArrayExpressionMethods::is_contained_by)
 #[cfg(feature = "postgres_backend")]
 pub type IsContainedBy<Lhs, Rhs> = Grouped<super::operators::IsContainedBy<Lhs, AsExpr<Rhs, Lhs>>>;
+
+/// The return type of [`lhs.range_is_contained_by(rhs)`](super::expression_methods::PgRangeExpressionMethods::lesser_than)
+#[cfg(feature = "postgres_backend")]
+pub type LesserThanRange<Lhs, Rhs> =
+    Grouped<super::operators::IsContainedByNet<Lhs, AsExpr<Rhs, Lhs>>>;
+
+#[doc(hidden)] // used by `#[auto_type]`
+pub type LesserThan<Lhs, Rhs> = LesserThanRange<Lhs, Rhs>;
+
+/// The return type of [`lhs.range_is_contained_by(rhs)`](super::expression_methods::PgRangeExpressionMethods::greater_than)
+#[cfg(feature = "postgres_backend")]
+pub type GreaterThanRange<Lhs, Rhs> = Grouped<super::operators::ContainsNet<Lhs, AsExpr<Rhs, Lhs>>>;
+
+#[doc(hidden)] // used by `#[auto_type]`
+pub type GreaterThan<Lhs, Rhs> = GreaterThanRange<Lhs, Rhs>;
+
+/// The return type of [`lhs.union_range(rhs)`](super::expression_methods::PgRangeExpressionMethods::union_range)
+#[cfg(feature = "postgres_backend")]
+pub type UnionRange<Lhs, Rhs> = Grouped<super::operators::UnionsRange<Lhs, AsExpr<Rhs, Lhs>>>;
+
+/// The return type of [`lhs.difference_range(rhs)`](super::expression_methods::PgRangeExpressionMethods::difference_range)
+#[cfg(feature = "postgres_backend")]
+pub type Difference<Lhs, Rhs> = Grouped<super::operators::DifferenceRange<Lhs, AsExpr<Rhs, Lhs>>>;
+
+#[doc(hidden)] // used by `#[auto_type]`
+pub type DifferenceRange<Lhs, Rhs> = Difference<Lhs, Rhs>;
+
+/// The return type of [`lhs.intersection_range(rhs)`](super::expression_methods::PgRangeExpressionMethods::intersection_range)
+#[cfg(feature = "postgres_backend")]
+pub type Intersection<Lhs, Rhs> =
+    Grouped<super::operators::IntersectionRange<Lhs, AsExpr<Rhs, Lhs>>>;
+
+#[doc(hidden)] // used by `#[auto_type]`
+pub type IntersectionRange<Lhs, Rhs> = Intersection<Lhs, Rhs>;
 
 /// The return type of [`expr.nulls_first()`](super::expression_methods::PgSortExpressionMethods::nulls_first)
 #[cfg(feature = "postgres_backend")]

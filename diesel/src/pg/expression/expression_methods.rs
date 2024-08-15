@@ -858,6 +858,369 @@ pub trait PgRangeExpressionMethods: Expression + Sized {
     {
         Grouped(IsContainedBy::new(self, other.as_expression()))
     }
+
+    /// Creates a PostgreSQL `&&` expression.
+    ///
+    /// This operator returns whether two ranges overlap.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # table! {
+    /// #     posts {
+    /// #         id -> Integer,
+    /// #         versions -> Range<Integer>,
+    /// #     }
+    /// # }
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use self::posts::dsl::*;
+    /// #     use std::collections::Bound;
+    /// #     let conn = &mut establish_connection();
+    /// #     diesel::sql_query("DROP TABLE IF EXISTS posts").execute(conn).unwrap();
+    /// #     diesel::sql_query("CREATE TABLE posts (id SERIAL PRIMARY KEY, versions INT4RANGE NOT NULL)").execute(conn).unwrap();
+    /// #
+    /// diesel::insert_into(posts)
+    ///     .values(&vec![
+    ///         (versions.eq((Bound::Included(1), Bound::Included(2)))),
+    ///         (versions.eq((Bound::Included(3), Bound::Included(4)))),
+    ///         (versions.eq((Bound::Included(5), Bound::Included(6))))
+    ///     ])
+    ///     .execute(conn)?;
+    ///
+    /// let data = posts.select(id)
+    ///     .filter(versions.overlaps_with((Bound::Included(1), Bound::Included(4))))
+    ///     .load::<i32>(conn)?;
+    /// assert_eq!(vec![1, 2], data);
+    ///
+    /// let data = posts.select(id)
+    ///     .filter(versions.overlaps_with((Bound::Included(7), Bound::Included(8))))
+    ///     .load::<i32>(conn)?;
+    /// assert!(data.is_empty());
+    /// #     Ok(())
+    /// # }
+    /// ```
+    fn overlaps_with<T>(self, other: T) -> dsl::OverlapsWith<Self, T>
+    where
+        Self::SqlType: SqlType,
+        T: AsExpression<Self::SqlType>,
+    {
+        Grouped(OverlapsWith::new(self, other.as_expression()))
+    }
+
+    /// Creates a PostgreSQL `&<` expression.
+    ///
+    /// This operator returns whether a range doesn't extend to the right of another
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # table! {
+    /// #     posts {
+    /// #         id -> Integer,
+    /// #         versions -> Range<Integer>,
+    /// #     }
+    /// # }
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use self::posts::dsl::*;
+    /// #     use std::collections::Bound;
+    /// #     let conn = &mut establish_connection();
+    /// #     diesel::sql_query("DROP TABLE IF EXISTS posts").execute(conn).unwrap();
+    /// #     diesel::sql_query("CREATE TABLE posts (id SERIAL PRIMARY KEY, versions INT4RANGE NOT NULL)").execute(conn).unwrap();
+    /// #
+    /// diesel::insert_into(posts)
+    ///     .values(versions.eq((Bound::Included(1), Bound::Excluded(20))))
+    ///     .execute(conn)?;
+    ///
+    /// let cool_posts = posts.select(id)
+    ///     .filter(versions.range_not_extends_right_to((Bound::Included(18), Bound::Excluded(20))))
+    ///     .load::<i32>(conn)?;
+    /// assert_eq!(vec![1], cool_posts);
+    ///
+    /// let amazing_posts = posts.select(id)
+    ///     .filter(versions.contains_range((Bound::Included(20), Bound::Excluded(25))))
+    ///     .load::<i32>(conn)?;
+    /// assert!(amazing_posts.is_empty());
+    /// #     Ok(())
+    /// # }
+    /// ```
+    fn range_not_extends_right_to<T>(self, other: T) -> dsl::RangeNotExtendsRightTo<Self, T>
+    where
+        Self::SqlType: SqlType,
+        T: AsExpression<Self::SqlType>,
+    {
+        Grouped(NotExtendsRightTo::new(self, other.as_expression()))
+    }
+
+    /// Creates a PostgreSQL `<<` expression.
+    ///
+    /// Is the first range strictly left of the second?
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # table! {
+    /// #     posts {
+    /// #         id -> Integer,
+    /// #         versions -> Range<Integer>,
+    /// #     }
+    /// # }
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use self::posts::dsl::*;
+    /// #     use std::collections::Bound;
+    /// #     let conn = &mut establish_connection();
+    /// #     diesel::sql_query("DROP TABLE IF EXISTS posts").execute(conn).unwrap();
+    /// #     diesel::sql_query("CREATE TABLE posts (id SERIAL PRIMARY KEY, versions INT4RANGE NOT NULL)").execute(conn).unwrap();
+    /// #
+    /// diesel::insert_into(posts)
+    ///     .values(&vec![
+    ///         (versions.eq((Bound::Included(1), Bound::Included(2)))),
+    ///         (versions.eq((Bound::Included(3), Bound::Included(4)))),
+    ///         (versions.eq((Bound::Included(5), Bound::Included(6))))
+    ///     ])
+    ///     .execute(conn)?;
+    ///
+    /// let data = posts.select(id)
+    ///     .filter(versions.lesser_than((Bound::Included(1), Bound::Included(4))))
+    ///     .load::<i32>(conn)?;
+    /// assert!(data.is_empty());
+    ///
+    /// let data = posts.select(id)
+    ///     .filter(versions.lesser_than((Bound::Included(5), Bound::Included(8))))
+    ///     .load::<i32>(conn)?;
+    /// assert_eq!(vec![1, 2], data);
+    /// #     Ok(())
+    /// # }
+    /// ```
+    fn lesser_than<T>(self, other: T) -> dsl::LesserThanRange<Self, T>
+    where
+        Self::SqlType: SqlType,
+        T: AsExpression<Self::SqlType>,
+    {
+        Grouped(IsContainedByNet::new(self, other.as_expression()))
+    }
+
+    /// Creates a PostgreSQL `>>` expression.
+    ///
+    /// Is the first range strictly right of the second?
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # table! {
+    /// #     posts {
+    /// #         id -> Integer,
+    /// #         versions -> Range<Integer>,
+    /// #     }
+    /// # }
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use self::posts::dsl::*;
+    /// #     use std::collections::Bound;
+    /// #     let conn = &mut establish_connection();
+    /// #     diesel::sql_query("DROP TABLE IF EXISTS posts").execute(conn).unwrap();
+    /// #     diesel::sql_query("CREATE TABLE posts (id SERIAL PRIMARY KEY, versions INT4RANGE NOT NULL)").execute(conn).unwrap();
+    /// #
+    /// diesel::insert_into(posts)
+    ///     .values(&vec![
+    ///         (versions.eq((Bound::Included(1), Bound::Included(2)))),
+    ///         (versions.eq((Bound::Included(3), Bound::Included(4)))),
+    ///         (versions.eq((Bound::Included(5), Bound::Included(6))))
+    ///     ])
+    ///     .execute(conn)?;
+    ///
+    /// let data = posts.select(id)
+    ///     .filter(versions.greater_than((Bound::Included(1), Bound::Included(2))))
+    ///     .load::<i32>(conn)?;
+    /// assert_eq!(vec![2, 3], data);
+    ///
+    /// let data = posts.select(id)
+    ///     .filter(versions.greater_than((Bound::Included(5), Bound::Included(8))))
+    ///     .load::<i32>(conn)?;
+    /// assert!(data.is_empty());
+    /// #     Ok(())
+    /// # }
+    /// ```
+    fn greater_than<T>(self, other: T) -> dsl::GreaterThanRange<Self, T>
+    where
+        Self::SqlType: SqlType,
+        T: AsExpression<Self::SqlType>,
+    {
+        Grouped(ContainsNet::new(self, other.as_expression()))
+    }
+
+    /// Creates a PostgreSQL ` + ` expression.
+    ///
+    /// This operator unions two ranges and returns the union.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # table! {
+    /// #     posts {
+    /// #         id -> Integer,
+    /// #         versions -> Range<Integer>,
+    /// #     }
+    /// # }
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use self::posts::dsl::*;
+    /// #     use std::collections::Bound;
+    /// #     let conn = &mut establish_connection();
+    /// #     diesel::sql_query("DROP TABLE IF EXISTS posts").execute(conn).unwrap();
+    /// #     diesel::sql_query("CREATE TABLE posts (id SERIAL PRIMARY KEY, versions INT4RANGE NOT NULL)").execute(conn).unwrap();
+    /// #
+    /// diesel::insert_into(posts)
+    ///     .values(&vec![
+    ///         (versions.eq((Bound::Included(1), Bound::Included(2))))
+    ///     ])
+    ///     .execute(conn)?;
+    ///
+    /// let data = posts.select(versions.union_range((Bound::Included(2),Bound::Included(6))))
+    ///     .load::<(Bound<i32>,Bound<i32>)>(conn)?;
+    /// let expected_range = (Bound::Included(1),Bound::Excluded(7));
+    /// assert_eq!(expected_range, data[0]);
+    /// #     Ok(())
+    /// # }
+    /// ```
+    fn union_range<T>(self, other: T) -> dsl::UnionRange<Self, T>
+    where
+        Self::SqlType: SqlType,
+        T: AsExpression<Self::SqlType>,
+    {
+        Grouped(UnionsRange::new(self, other.as_expression()))
+    }
+
+    /// Creates a PostgreSQL ` - ` expression.
+    ///
+    /// This operator takes two ranges and returns the difference.
+    ///
+    /// The second range must not be contained in the first in such a way that the
+    /// difference would not be a single range.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # table! {
+    /// #     posts {
+    /// #         id -> Integer,
+    /// #         versions -> Range<Integer>,
+    /// #     }
+    /// # }
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use self::posts::dsl::*;
+    /// #     use std::collections::Bound;
+    /// #     let conn = &mut establish_connection();
+    /// #     diesel::sql_query("DROP TABLE IF EXISTS posts").execute(conn).unwrap();
+    /// #     diesel::sql_query("CREATE TABLE posts (id SERIAL PRIMARY KEY, versions INT4RANGE NOT NULL)").execute(conn).unwrap();
+    /// #
+    /// diesel::insert_into(posts)
+    ///     .values(&vec![
+    ///         (versions.eq((Bound::Included(1), Bound::Included(8))))
+    ///     ])
+    ///     .execute(conn)?;
+    ///
+    /// let data = posts.select(versions.difference_range((Bound::Included(3),Bound::Included(8))))
+    ///     .load::<(Bound<i32>,Bound<i32>)>(conn)?;
+    /// let expected_range = (Bound::Included(1),Bound::Excluded(3));
+    /// assert_eq!(expected_range, data[0]);
+    /// #     Ok(())
+    /// # }
+    /// ```
+    fn difference_range<T>(self, other: T) -> dsl::Difference<Self, T>
+    where
+        Self::SqlType: SqlType,
+        T: AsExpression<Self::SqlType>,
+    {
+        Grouped(DifferenceRange::new(self, other.as_expression()))
+    }
+
+    /// Creates a PostgreSQL ` * ` expression.
+    ///
+    /// This operator takes two ranges and returns the intersection.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # table! {
+    /// #     posts {
+    /// #         id -> Integer,
+    /// #         versions -> Range<Integer>,
+    /// #     }
+    /// # }
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use self::posts::dsl::*;
+    /// #     use std::collections::Bound;
+    /// #     let conn = &mut establish_connection();
+    /// #     diesel::sql_query("DROP TABLE IF EXISTS posts").execute(conn).unwrap();
+    /// #     diesel::sql_query("CREATE TABLE posts (id SERIAL PRIMARY KEY, versions INT4RANGE NOT NULL)").execute(conn).unwrap();
+    /// #
+    /// diesel::insert_into(posts)
+    ///     .values(&vec![
+    ///         (versions.eq((Bound::Included(1), Bound::Included(8))))
+    ///     ])
+    ///     .execute(conn)?;
+    ///
+    /// let data = posts.select(versions.intersection_range((Bound::Included(3),Bound::Included(8))))
+    ///     .load::<(Bound<i32>,Bound<i32>)>(conn)?;
+    /// let expected_range = (Bound::Included(3),Bound::Excluded(9));
+    /// assert_eq!(expected_range, data[0]);
+    /// #     Ok(())
+    /// # }
+    /// ```
+    fn intersection_range<T>(self, other: T) -> dsl::Intersection<Self, T>
+    where
+        Self::SqlType: SqlType,
+        T: AsExpression<Self::SqlType>,
+    {
+        Grouped(IntersectionRange::new(self, other.as_expression()))
+    }
 }
 
 impl<T> PgRangeExpressionMethods for T
@@ -2514,10 +2877,16 @@ pub(in crate::pg) mod private {
         message = "`{Self}` is neither `diesel::sql_types::Array<_>` nor `diesel::sql_types::Nullable<Array<_>>`",
         note = "try to provide an expression that produces one of the expected sql types"
     )]
-    pub trait ArrayOrNullableArray {}
+    pub trait ArrayOrNullableArray {
+        type Inner;
+    }
 
-    impl<T> ArrayOrNullableArray for Array<T> {}
-    impl<T> ArrayOrNullableArray for Nullable<Array<T>> {}
+    impl<T> ArrayOrNullableArray for Array<T> {
+        type Inner = T;
+    }
+    impl<T> ArrayOrNullableArray for Nullable<Array<T>> {
+        type Inner = T;
+    }
 
     /// Marker trait used to implement `PgNetExpressionMethods` on the appropriate types.
     #[diagnostic::on_unimplemented(

@@ -3,6 +3,7 @@
 use super::expression_methods::InetOrCidr;
 use super::expression_methods::RangeHelper;
 use crate::expression::functions::define_sql_function;
+use crate::pg::expression::expression_methods::ArrayOrNullableArray;
 use crate::sql_types::*;
 
 define_sql_function! {
@@ -105,6 +106,301 @@ define_sql_function! {
     /// ```
     #[cfg(feature = "postgres_backend")]
     fn lower<T: RangeHelper>(range: T) -> Nullable<<T as RangeHelper>::Inner>;
+}
+
+define_sql_function! {
+    /// Returns the upper bound of the range.
+    /// if the range is empty or has no upper bound, it returns NULL.
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # table! {
+    /// #     posts {
+    /// #         id -> Integer,
+    /// #         versions -> Range<Integer>,
+    /// #     }
+    /// # }
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use self::posts::dsl::*;
+    /// #     use std::collections::Bound;
+    /// #     let conn = &mut establish_connection();
+    /// #     diesel::sql_query("DROP TABLE IF EXISTS posts").execute(conn).unwrap();
+    /// #     diesel::sql_query("CREATE TABLE posts (id SERIAL PRIMARY KEY, versions INT4RANGE NOT NULL)").execute(conn).unwrap();
+    /// #
+    /// use diesel::dsl::upper;
+    /// diesel::insert_into(posts)
+    ///     .values(&[
+    ///        versions.eq((Bound::Included(5), Bound::Excluded(7))),
+    ///        versions.eq((Bound::Included(5), Bound::Unbounded))
+    ///     ]).execute(conn)?;
+    ///
+    /// let cool_posts = posts.select(upper(versions))
+    ///     .load::<Option<i32>>(conn)?;
+    /// assert_eq!(vec![Some(7), None], cool_posts);
+    /// #     Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "postgres_backend")]
+    fn upper<T: RangeHelper>(range: T) -> Nullable<<T as RangeHelper>::Inner>;
+}
+
+define_sql_function! {
+    /// Returns true if the range is empty.
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # table! {
+    /// #     posts {
+    /// #         id -> Integer,
+    /// #         versions -> Range<Integer>,
+    /// #     }
+    /// # }
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use self::posts::dsl::*;
+    /// #     use std::collections::Bound;
+    /// #     let conn = &mut establish_connection();
+    /// #     diesel::sql_query("DROP TABLE IF EXISTS posts").execute(conn).unwrap();
+    /// #     diesel::sql_query("CREATE TABLE posts (id SERIAL PRIMARY KEY, versions INT4RANGE NOT NULL)").execute(conn).unwrap();
+    /// #
+    /// use diesel::dsl::isempty;
+    /// diesel::insert_into(posts)
+    ///     .values(&[
+    ///        versions.eq((Bound::Included(5), Bound::Excluded(7))),
+    ///        versions.eq((Bound::Excluded(7), Bound::Excluded(7))),
+    ///     ]).execute(conn)?;
+    ///
+    /// let cool_posts = posts.select(isempty(versions))
+    ///     .load::<bool>(conn)?;
+    /// assert_eq!(vec![false, true], cool_posts);
+    /// #     Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "postgres_backend")]
+    fn isempty<T: RangeHelper>(range: T) -> Bool;
+}
+
+define_sql_function! {
+    /// Returns true if the range's lower bound is inclusive.
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # table! {
+    /// #     posts {
+    /// #         id -> Integer,
+    /// #         versions -> Range<Integer>,
+    /// #     }
+    /// # }
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use self::posts::dsl::*;
+    /// #     use std::collections::Bound;
+    /// #     let conn = &mut establish_connection();
+    /// #     diesel::sql_query("DROP TABLE IF EXISTS posts").execute(conn).unwrap();
+    /// #     diesel::sql_query("CREATE TABLE posts (id SERIAL PRIMARY KEY, versions INT4RANGE NOT NULL)").execute(conn).unwrap();
+    /// #
+    /// use diesel::dsl::lower_inc;
+    /// diesel::insert_into(posts)
+    ///     .values(&[
+    ///        versions.eq((Bound::Included(5), Bound::Excluded(7))),
+    ///        versions.eq((Bound::Excluded(7), Bound::Excluded(7))),
+    ///     ]).execute(conn)?;
+    ///
+    /// let cool_posts = posts.select(lower_inc(versions))
+    ///     .load::<bool>(conn)?;
+    /// assert_eq!(vec![true, false], cool_posts);
+    /// #     Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "postgres_backend")]
+    fn lower_inc<T: RangeHelper>(range: T) -> Bool;
+}
+
+define_sql_function! {
+    /// Returns true if the range's upper bound is inclusive.
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # table! {
+    /// #     posts {
+    /// #         id -> Integer,
+    /// #         versions -> Range<Integer>,
+    /// #     }
+    /// # }
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use self::posts::dsl::*;
+    /// #     use std::collections::Bound;
+    /// #     let conn = &mut establish_connection();
+    /// #     diesel::sql_query("DROP TABLE IF EXISTS posts").execute(conn).unwrap();
+    /// #     diesel::sql_query("CREATE TABLE posts (id SERIAL PRIMARY KEY, versions INT4RANGE NOT NULL)").execute(conn).unwrap();
+    /// #
+    /// use diesel::dsl::upper_inc;
+    /// diesel::insert_into(posts)
+    ///     .values(&[
+    ///        versions.eq((Bound::Included(5), Bound::Excluded(7))),
+    ///     ]).execute(conn)?;
+    ///
+    /// let cool_posts = posts.select(upper_inc(versions))
+    ///     .load::<bool>(conn)?;
+    /// assert_eq!(vec![false], cool_posts);
+    /// #     Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "postgres_backend")]
+    fn upper_inc<T: RangeHelper>(range: T) -> Bool;
+}
+
+define_sql_function! {
+    /// Returns true if the range's lower bound is unbounded.
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # table! {
+    /// #     posts {
+    /// #         id -> Integer,
+    /// #         versions -> Range<Integer>,
+    /// #     }
+    /// # }
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use self::posts::dsl::*;
+    /// #     use std::collections::Bound;
+    /// #     let conn = &mut establish_connection();
+    /// #     diesel::sql_query("DROP TABLE IF EXISTS posts").execute(conn).unwrap();
+    /// #     diesel::sql_query("CREATE TABLE posts (id SERIAL PRIMARY KEY, versions INT4RANGE NOT NULL)").execute(conn).unwrap();
+    /// #
+    /// use diesel::dsl::lower_inf;
+    /// diesel::insert_into(posts)
+    ///     .values(&[
+    ///        versions.eq((Bound::Included(5), Bound::Excluded(7))),
+    ///        versions.eq((Bound::Unbounded, Bound::Excluded(7))),
+    ///     ]).execute(conn)?;
+    ///
+    /// let cool_posts = posts.select(lower_inf(versions))
+    ///     .load::<bool>(conn)?;
+    /// assert_eq!(vec![false, true], cool_posts);
+    /// #     Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "postgres_backend")]
+    fn lower_inf<T: RangeHelper>(range: T) -> Bool;
+}
+
+define_sql_function! {
+    /// Returns true if the range's upper bound is unbounded.
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # table! {
+    /// #     posts {
+    /// #         id -> Integer,
+    /// #         versions -> Range<Integer>,
+    /// #     }
+    /// # }
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use self::posts::dsl::*;
+    /// #     use std::collections::Bound;
+    /// #     let conn = &mut establish_connection();
+    /// #     diesel::sql_query("DROP TABLE IF EXISTS posts").execute(conn).unwrap();
+    /// #     diesel::sql_query("CREATE TABLE posts (id SERIAL PRIMARY KEY, versions INT4RANGE NOT NULL)").execute(conn).unwrap();
+    /// #
+    /// use diesel::dsl::upper_inf;
+    /// diesel::insert_into(posts)
+    ///     .values(&[
+    ///        versions.eq((Bound::Included(5), Bound::Excluded(7))),
+    ///        versions.eq((Bound::Included(5),Bound::Unbounded)),
+    ///     ]).execute(conn)?;
+    ///
+    /// let cool_posts = posts.select(upper_inf(versions))
+    ///     .load::<bool>(conn)?;
+    /// assert_eq!(vec![false, true], cool_posts);
+    /// #     Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "postgres_backend")]
+    fn upper_inf<T: RangeHelper>(range: T) -> Bool;
+}
+
+define_sql_function! {
+    /// Returns the smallest range which includes both of the given ranges.
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # table! {
+    /// #     posts {
+    /// #         id -> Integer,
+    /// #         first_versions -> Range<Integer>,
+    /// #         second_versions -> Range<Integer>,
+    /// #     }
+    /// # }
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use self::posts::dsl::*;
+    /// #     use std::collections::Bound;
+    /// #     let conn = &mut establish_connection();
+    /// #     diesel::sql_query("DROP TABLE IF EXISTS posts").execute(conn).unwrap();
+    /// #     diesel::sql_query("CREATE TABLE posts (id SERIAL PRIMARY KEY, first_versions INT4RANGE NOT NULL, second_versions INT4RANGE NOT NULL)").execute(conn).unwrap();
+    /// #
+    /// use diesel::dsl::range_merge;
+    /// diesel::insert_into(posts)
+    ///     .values((
+    ///        first_versions.eq((Bound::Included(5), Bound::Excluded(7))),
+    ///        second_versions.eq((Bound::Included(6),Bound::Unbounded)),
+    ///     )).execute(conn)?;
+    ///
+    /// let cool_posts = posts.select(range_merge(first_versions, second_versions))
+    ///     .load::<(Bound<i32>, Bound<i32>)>(conn)?;
+    /// assert_eq!(vec![(Bound::Included(5), Bound::Unbounded)], cool_posts);
+    /// #     Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "postgres_backend")]
+    fn range_merge<T: RangeHelper>(lhs: T, rhs: T) -> Range<<T as RangeHelper>::Inner>;
 }
 
 define_sql_function! {
@@ -216,9 +512,11 @@ define_sql_function! {
     /// # }
     /// #
     /// # fn main() {
+    /// #     #[cfg(feature = "numeric")]
     /// #     run_test().unwrap();
     /// # }
     /// #
+    /// # #[cfg(feature = "numeric")]
     /// # fn run_test() -> QueryResult<()> {
     /// #     use self::posts::dsl::*;
     /// #     use std::collections::Bound;
@@ -264,9 +562,11 @@ define_sql_function! {
     /// # }
     /// #
     /// # fn main() {
+    /// #     #[cfg(feature = "time")]
     /// #     run_test().unwrap();
     /// # }
     /// #
+    /// # #[cfg(feature = "time")]
     /// # fn run_test() -> QueryResult<()> {
     /// #     use self::posts::dsl::*;
     /// #     use std::collections::Bound;
@@ -360,9 +660,11 @@ define_sql_function! {
     /// # }
     /// #
     /// # fn main() {
+    /// #     #[cfg(feature = "time")]
     /// #     run_test().unwrap();
     /// # }
     /// #
+    /// # #[cfg(feature = "time")]
     /// # fn run_test() -> QueryResult<()> {
     /// #     use self::posts::dsl::*;
     /// #     use std::collections::Bound;
@@ -391,4 +693,41 @@ define_sql_function! {
     /// ```
     #[cfg(feature = "postgres_backend")]
     fn daterange(lower: Nullable<Date>, upper: Nullable<Date>, bound: RangeBoundEnum) -> Daterange;
+}
+
+#[cfg(feature = "postgres_backend")]
+define_sql_function! {
+    /// Append an element to the end of an array.
+    /// # Example
+    ///
+    /// ```rust
+    /// # include!("../../doctest_setup.rs");
+    /// #
+    /// # fn main() {
+    /// #     run_test().unwrap();
+    /// # }
+    /// #
+    /// # fn run_test() -> QueryResult<()> {
+    /// #     use diesel::dsl::array_append;
+    /// #     use diesel::sql_types::{Nullable, Integer, Array};
+    /// #     let connection = &mut establish_connection();
+    /// let ints = diesel::select(array_append::<Array<_>, Integer, _, _>(vec![1, 2], 3))
+    ///     .get_result::<Vec<i32>>(connection)?;
+    /// assert_eq!(vec![1, 2, 3], ints);
+    ///
+    /// let ints = diesel::select(array_append::<Array<_>, Nullable<Integer>, _, _>(vec![Some(1), Some(2)], None::<i32>))
+    ///     .get_result::<Vec<Option<i32>>>(connection)?;
+    /// assert_eq!(vec![Some(1), Some(2), None], ints);
+    ///
+    /// let ints = diesel::select(array_append::<Nullable<Array<_>>, Integer, _, _>(None::<Vec<i32>>, 3))
+    ///     .get_result::<Vec<i32>>(connection)?;
+    /// assert_eq!(vec![3], ints);
+    ///
+    /// let ints = diesel::select(array_append::<Nullable<Array<_>>, Nullable<Integer>, _, _>(None::<Vec<i32>>, None::<i32>))
+    ///     .get_result::<Vec<Option<i32>>>(connection)?;
+    /// assert_eq!(vec![None], ints);
+    /// #     Ok(())
+    /// # }
+    /// ```
+    fn array_append<Arr: ArrayOrNullableArray<Inner=T> + SingleValue, T: SingleValue>(a: Arr, e: T) -> Array<T>;
 }

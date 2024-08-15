@@ -15,6 +15,7 @@ infix_operator!(OverlapsWith, " && ", backend: Pg);
 infix_operator!(Contains, " @> ", backend: Pg);
 infix_operator!(IsContainedBy, " <@ ", backend: Pg);
 infix_operator!(ILike, " ILIKE ", backend: Pg);
+infix_operator!(NotExtendsRightTo, " &< ", backend: Pg);
 infix_operator!(NotILike, " NOT ILIKE ", backend: Pg);
 infix_operator!(SimilarTo, " SIMILAR TO ", backend: Pg);
 infix_operator!(NotSimilarTo, " NOT SIMILAR TO ", backend: Pg);
@@ -46,6 +47,27 @@ __diesel_infix_operator!(
 );
 infix_operator!(RetrieveByPathAsTextJson, " #>> ", Text, backend: Pg);
 infix_operator!(RemoveByPathFromJsonb, " #-", Jsonb, backend: Pg);
+
+__diesel_infix_operator!(
+    UnionsRange,
+    " + ",
+    __diesel_internal_SameResultAsInput,
+    backend: Pg
+);
+
+__diesel_infix_operator!(
+    DifferenceRange,
+    " - ",
+    __diesel_internal_SameResultAsInput,
+    backend: Pg
+);
+
+__diesel_infix_operator!(
+    IntersectionRange,
+    " * ",
+    __diesel_internal_SameResultAsInput,
+    backend: Pg
+);
 
 #[derive(Debug, Clone, Copy, QueryId, DieselNumericOps, ValidGrouping)]
 #[doc(hidden)]
